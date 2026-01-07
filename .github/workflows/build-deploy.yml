@@ -34,4 +34,4 @@ jobs:
             linux/arm/v6
           push: true
           provenance: false
-          tags: ${{ vars.DOCKERHUB_TAG }}:latest
+          tags: bmiki75/spotlight_storage:latest
