@@ -12,6 +12,9 @@ COPY /setup.sh /setup.sh
 RUN  chmod +x /setup.sh 
 COPY requirements.txt ./
 
+# Pillow library
+RUN apk add zlib-dev jpeg-dev gcc musl-dev
+
 RUN apk add --no-cache bash git curl && \
     apk upgrade && \
     cd /app && \
