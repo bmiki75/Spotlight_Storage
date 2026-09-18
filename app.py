@@ -562,6 +562,76 @@ def get_languages():
         return jsonify({"error": "An error occurred fetching available languages"}), 500
 
 
+@app.route('/api/webhook/light-items', methods=['POST', 'GET'])
+def webhook_light_items():
+    """
+    Webhook to search items by name or tag and light up their LEDs.
+    Accepts JSON body on POST, or URL parameters on GET.
+    Example variables: {"name": "Resistor"} or {"tag": "Electronics"}
+    """
+    # 1. Parse the incoming search variable from POST (JSON) or GET (args)
+    if request.method == 'POST' and request.is_json:
+        data = request.get_json()
+        search_name = data.get('name')
+        search_tag = data.get('tag')
+    else:
+        search_name = request.args.get('name')
+        search_tag = request.args.get('tag')
+
+    if not search_name and not search_tag:
+        return jsonify({'error': 'Missing query variable. Please provide a "name" or "tag".'}), 400
+
+    # 2. Query the database using a custom connection
+    conn = db.create_combined_db()
+    items = []
+    try:
+        if search_name:
+            # Case-insensitive partial matching for item names
+            items = conn.execute(
+                "SELECT * FROM items WHERE name LIKE ?", 
+                (f"%{search_name}%",)
+            ).fetchall()
+        elif search_tag:
+            # Match items where the tags column contains the tag string
+            items = conn.execute(
+                "SELECT * FROM items WHERE tags LIKE ?", 
+                (f"%{search_tag}%",)
+            ).fetchall()
+    except Exception as e:
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+    finally:
+        conn.close()
+
+    if not items:
+        return jsonify({'status': 'No items found matching the criteria.'}), 404
+
+    # 3. Iterate through found items and activate their target LEDs
+    activated_items = []
+    for row in items:
+        item = dict(row)
+        
+        # Disambiguate IP/Hostname
+        if is_valid_url_or_ip(item['ip']):
+            ip = item['ip']
+        else:
+            ip = db.get_ip_by_name(item['ip'])
+            
+        esp = db.get_esp_settings_by_ip(ip)
+        
+        if esp:
+            # Leverage your app's built-in non-blocking light runner
+            light(item['position'], ip, esp, item['quantity'])
+            activated_items.append({
+                'id': item['id'],
+                'name': item['name'],
+                'ip': ip
+            })
+
+    return jsonify({
+        'success': True,
+        'message': f'Successfully lit up {len(activated_items)} matched item(s).',
+        'items': activated_items
+    }), 200
 
 
 
