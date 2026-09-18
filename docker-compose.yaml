@@ -2,9 +2,9 @@ services:
   spotlight-storage:
     environment:
       - TRANSLATIONS_DIR=/app/static/translations
-    image: mellowlabs/spotlight_storage:dev
+    image: bmik75/spotlight_storage
     ports:
-      - "5000:5000"
+      - "5010:5010"
     restart: on-failure
     volumes:
       - ./data:/app/data
